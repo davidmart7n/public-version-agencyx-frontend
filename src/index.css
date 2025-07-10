@@ -1,0 +1,31 @@
+/* Asegura que los inputs no tengan fondo blanco en autofill */
+input:-webkit-autofill,
+input:-webkit-autofill:focus {
+  background-color: transparent !important;
+  color: black !important;
+  box-shadow: 0 0 0px 1000px transparent inset !important; /* Elimina la sombra del autofill */
+  transition: background-color 600000s 0s, color 600000s 0s;
+}
+
+/* Para los TextFields en Material UI */
+.MuiInputBase-input {
+  color: black !important; /* Asegura que el texto sea visible */
+  background-color: white !important; /* Asegura que el fondo no cambie */
+}
+
+
+/* Estilo global para inputs */
+input, textarea, .MuiInputBase-input {
+  -webkit-appearance: none; /* Desactiva la apariencia predeterminada de Safari en iOS */
+  color: black !important;
+  background-color: white !important;
+  border: 1px solid #ccc; /* Asegúrate de que haya un borde para el input */
+}
+
+/* Desactivar scroll suave */
+html, body, #root {
+  scroll-behavior: auto;
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}

@@ -1,0 +1,151 @@
+name: Deploy to Firebase Hosting
+
+on:
+  push:
+    branches:
+      - main  # Solo se ejecuta al hacer push a la rama main del repo de desarrollo
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: '20.18.1'
+
+      - name: Clear npm cache
+        run: npm cache clean --force
+
+      - name: Install dependencies
+        run: npm ci
+
+      # ✅ Generar .env desde GitHub Secrets
+      - name: Generate .env from GitHub Secrets
+        run: |
+          echo "VITE_NOTIFICATION_URL=${{ secrets.VITE_NOTIFICATION_URL }}" >> .env
+          echo "VITE_FIREBASE_API_KEY=${{ secrets.VITE_FIREBASE_API_KEY }}" >> .env
+          echo "VITE_FIREBASE_AUTH_DOMAIN=${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}" >> .env
+          echo "VITE_FIREBASE_PROJECT_ID=${{ secrets.VITE_FIREBASE_PROJECT_ID }}" >> .env
+          echo "VITE_FIREBASE_STORAGE_BUCKET=${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}" >> .env
+          echo "VITE_FIREBASE_MESSAGING_SENDER_ID=${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}" >> .env
+          echo "VITE_FIREBASE_APP_ID=${{ secrets.VITE_FIREBASE_APP_ID }}" >> .env
+          echo "VITE_FIREBASE_MEASUREMENT_ID=${{ secrets.VITE_FIREBASE_MEASUREMENT_ID }}" >> .env
+          echo "VITE_FIREBASE_VAPID_KEY=${{ secrets.VITE_FIREBASE_VAPID_KEY }}" >> .env
+          echo "VITE_API_NODE_BASE_URL=${{ secrets.VITE_API_NODE_BASE_URL }}" >> .env
+          echo "VITE_ENVIRONMENT=${{ secrets.VITE_ENVIRONMENT }}" >> .env
+          echo "VITE_PROJECT_NAME=${{ secrets.VITE_PROJECT_NAME }}" >> .env
+
+        # ✅ Generar .firebaserc dinámicamente desde Secrets
+      - name: Generate .firebaserc from Secrets
+        run: |
+          echo '{' > .firebaserc
+          echo '  "projects": {' >> .firebaserc
+          echo '    "default": "${{ secrets.VITE_FIREBASE_PROJECT_ID }}"' >> .firebaserc
+          echo '  }' >> .firebaserc
+          echo '}' >> .firebaserc
+
+      - name: Generate firebase-messaging-sw.js
+        run: |
+          mkdir -p dist
+          # Generar firebase-messaging-sw.js dinámicamente
+          echo "// Firebase Messaging + PWA cache" > dist/firebase-messaging-sw.js
+          echo "importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js');" >> dist/firebase-messaging-sw.js
+          echo "importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js');" >> dist/firebase-messaging-sw.js
+          echo "firebase.initializeApp({" >> dist/firebase-messaging-sw.js
+          echo "  apiKey: '${{ secrets.VITE_FIREBASE_API_KEY }}'," >> dist/firebase-messaging-sw.js
+          echo "  authDomain: '${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}'," >> dist/firebase-messaging-sw.js
+          echo "  projectId: '${{ secrets.VITE_FIREBASE_PROJECT_ID }}'," >> dist/firebase-messaging-sw.js
+          echo "  storageBucket: '${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}'," >> dist/firebase-messaging-sw.js
+          echo "  messagingSenderId: '${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}'," >> dist/firebase-messaging-sw.js
+          echo "  appId: '${{ secrets.VITE_FIREBASE_APP_ID }}'," >> dist/firebase-messaging-sw.js
+          echo "  measurementId: '${{ secrets.VITE_FIREBASE_MEASUREMENT_ID }}'" >> dist/firebase-messaging-sw.js
+          echo "});" >> dist/firebase-messaging-sw.js
+          echo "const messaging = firebase.messaging();" >> dist/firebase-messaging-sw.js
+          
+          
+          # ✅ PWA Install & Cache Handling
+          echo "self.addEventListener('install', (event) => {" >> dist/firebase-messaging-sw.js
+          echo "  event.waitUntil(" >> dist/firebase-messaging-sw.js
+          echo "    caches.open('pwa-cache').then((cache) => {" >> dist/firebase-messaging-sw.js
+          echo "      return cache.addAll([" >> dist/firebase-messaging-sw.js
+          echo "        '/', " >> dist/firebase-messaging-sw.js
+          echo "        '/index.html', " >> dist/firebase-messaging-sw.js
+          echo "        '/authentication', " >> dist/firebase-messaging-sw.js
+          echo "        '/dashboard', " >> dist/firebase-messaging-sw.js
+          echo "      ]);" >> dist/firebase-messaging-sw.js
+          echo "    })" >> dist/firebase-messaging-sw.js
+          echo "  );" >> dist/firebase-messaging-sw.js
+          echo "});" >> dist/firebase-messaging-sw.js
+
+
+          # Limpiar caché obsoleto cuando el SW se active (más robusto)
+          echo "self.addEventListener('activate', (event) => {" >> dist/firebase-messaging-sw.js
+          echo "  const cacheWhitelist = ['pwa-cache', 'dynamic-cache'];" >> dist/firebase-messaging-sw.js
+          echo "  event.waitUntil(" >> dist/firebase-messaging-sw.js
+          echo "    caches.keys().then((cacheNames) => {" >> dist/firebase-messaging-sw.js
+          echo "      return Promise.all(" >> dist/firebase-messaging-sw.js
+          echo "        cacheNames.map((cacheName) => {" >> dist/firebase-messaging-sw.js
+          echo "          if (!cacheWhitelist.includes(cacheName)) {" >> dist/firebase-messaging-sw.js
+          echo "            return caches.delete(cacheName); // Elimina cachés antiguos" >> dist/firebase-messaging-sw.js
+          echo "          }" >> dist/firebase-messaging-sw.js
+          echo "        })" >> dist/firebase-messaging-sw.js
+          echo "      );" >> dist/firebase-messaging-sw.js
+          echo "    }).then(() => {" >> dist/firebase-messaging-sw.js
+          echo "      return self.clients.claim(); // Asegura que la nueva versión controle todas las pestañas" >> dist/firebase-messaging-sw.js
+          echo "    })" >> dist/firebase-messaging-sw.js
+          echo "  );" >> dist/firebase-messaging-sw.js
+          echo "});" >> dist/firebase-messaging-sw.js
+
+          # Manejo de errores en fetch para manejar archivos estáticos
+          echo "self.addEventListener('fetch', (event) => {" >> dist/firebase-messaging-sw.js
+          echo "  event.respondWith(" >> dist/firebase-messaging-sw.js
+          echo "    caches.match(event.request).then((response) => {" >> dist/firebase-messaging-sw.js
+          echo "      return response || fetch(event.request); // Si está en caché, devuélvelo, si no, obténlo de la red" >> dist/firebase-messaging-sw.js
+          echo "    })" >> dist/firebase-messaging-sw.js
+          echo "  );" >> dist/firebase-messaging-sw.js
+          echo "});" >> dist/firebase-messaging-sw.js
+          
+      - name: Upload the generated firebase-messaging-sw.js
+        run: |
+          # Asegúrate de que se suba correctamente al directorio `dist`
+          echo "Subiendo firebase-messaging-sw.js a Firebase Hosting"
+          cp dist/firebase-messaging-sw.js public/
+
+
+
+      - name: Clean build directory
+        run: rm -rf dist
+
+      - name: Build your project
+        run: npm run build
+
+      - name: Upload source maps to Sentry
+        run: |
+          export SENTRY_RELEASE=$(git rev-parse HEAD)
+          npx sentry-cli releases new "$SENTRY_RELEASE"
+          npx sentry-cli sourcemaps upload ./dist --url-prefix "~" --release "$SENTRY_RELEASE"
+          npx sentry-cli releases finalize "$SENTRY_RELEASE"
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: maen-studios
+          SENTRY_PROJECT: agencyx-web
+
+      - name: Cache node modules
+        uses: actions/cache@v3
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-node-modules-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-modules-
+
+      - name: Deploy to Firebase Hosting
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: "${{ secrets.GITHUB_TOKEN }}"
+          firebaseServiceAccount: "${{ secrets.FIREBASE_SERVICE_ACCOUNT }}"
+          projectId: "${{ secrets.VITE_FIREBASE_PROJECT_ID }}"
+          channelId: live
