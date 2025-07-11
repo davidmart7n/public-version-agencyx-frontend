@@ -1,7 +1,7 @@
 import { requestFirebaseToken } from 'providers/firebaseConfig';
 import { useEffect } from 'react';
 import { Outlet } from 'react-router-dom';
-import ScrollToTop from 'providers/ScrollToTop'; // Importa ScrollToTop
+import ScrollToTop from 'providers/ScrollToTop';
 
 const App = () => {
 
@@ -44,7 +44,7 @@ const App = () => {
 
   return (
     <>
-      <ScrollToTop /> {/* Aquí lo añadimos */}
+      <ScrollToTop />
       <Outlet />
     </>
   );
