@@ -82,7 +82,7 @@ jobs:
           echo "});" >> dist/firebase-messaging-sw.js
 
 
-          # Limpiar caché obsoleto cuando el SW se active (más robusto)
+          # Limpiar caché obsoleto cuando el SW se active 
           echo "self.addEventListener('activate', (event) => {" >> dist/firebase-messaging-sw.js
           echo "  const cacheWhitelist = ['pwa-cache', 'dynamic-cache'];" >> dist/firebase-messaging-sw.js
           echo "  event.waitUntil(" >> dist/firebase-messaging-sw.js
