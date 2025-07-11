@@ -56,4 +56,4 @@ All rights to the full source code and branding remain with the original develop
 
 Feel free to explore the structure, read through the comments, and reach out if you're curious about the full version.
 
-<p align="center"><i>— Built with passion and privacy by the AgencyX team 🛡️</i></p>
+<p align="center"><i>— Built with passion and privacy by the Maen Studios team 🛡️</i></p>
